@@ -1,56 +1,84 @@
-from tkinter import *
+import tkinter as tk
+from tkinter import ttk
+import pandas as pd
+from sklearn.cluster import KMeans
+
 
 class MovieRecommenderApp:
-    def __init__(self, master):
-        self.master = master
-        self.master.title("Movie Recommender")
-        self.master.geometry("700x350")
-        
-        self.create_widgets()
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Movie Recommender")
 
-    def create_widgets(self):
-        self.frame = Frame(self.mast+er, width=300, height=300)
-        self.frame.grid(row=0, column=0, sticky="NW")
+        # Load movie data
+        self.movies_df = pd.read_csv("IMDB-Movie-Data.csv")
 
-        self.mainLabel = Label(self.master, text="Welcome To the movie Recommender!")
-        self.mainLabel.place(relx=0.5, rely=0.10, anchor=CENTER)
+        # Create GUI elements
+        self.filter_label = ttk.Label(root, text="Enter Movie Name:")
+        self.filter_label.grid(row=0, column=0, padx=10, pady=10)
 
-        self.Movies_screen = Frame(self.master)
-        self.Anime_screen = Frame(self.master)
+        self.filter_entry = ttk.Entry(root, width=30)
+        self.filter_entry.grid(row=0, column=1, padx=10, pady=10)
 
-        self.Movies = Button(self.master, text="Movies", bg="grey", fg="black", command=self.show_movies_screen)
-        self.Movies.place(relx=0.9, rely=0.5, anchor=CENTER)
+        self.cluster_button = ttk.Button(root, text="Cluster Movies", command=self.cluster_movies)
+        self.cluster_button.grid(row=0, column=2, padx=10, pady=10)
 
-        self.Anime = Button(self.master, text="Anime", bg="grey", fg="black", command=self.show_anime_screen)
-        self.Anime.place(relx=0.11, rely=0.5, anchor=CENTER)
+        self.result_label = ttk.Label(root, text="")
+        self.result_label.grid(row=1, column=0, columnspan=3, padx=10, pady=10)
 
-        self.Back = Button(self.master, text="Back", bg="grey", fg="black", command=self.show_main_frame)
-        self.Back.place(relx=0.5, rely=0.9, anchor=CENTER)
+        self.movies_listbox = tk.Listbox(root, width=100, height=20)
+        self.movies_listbox.grid(row=2, column=0, columnspan=3, padx=10, pady=10)
 
-    def show_movies_screen(self):
-        self.hide_frames()
-        self.Movies_screen.grid(row=0, column=0)
-        self.mainLabel.config(text="Movies Here")
+        # Add genre filter buttons
+        genres = ["Action", "Adventure", "Sci-Fi", "Mystery", "Horror", "Thriller", "Animation", "Comedy", "Family",
+                  "Fantasy", "Drama", "Music", "Biography", "History", "Crime", "Romance", "Western", "War", "Sport", "Musical"]
 
-    def show_anime_screen(self):
-        self.hide_frames()
-        self.Anime_screen.grid(row=0, column=0)
-        self.mainLabel.config(text="Anime Here")
+        self.genre_buttons = []
+        self.selected_genres = []
+        row_num = 3
+        col_num = 0
+        for genre in genres:
+            button = ttk.Button(root, text=genre, command=lambda g=genre: self.toggle_genre_filter(g))
+            button.grid(row=row_num, column=col_num, padx=5, pady=5)
+            col_num += 1
+            if col_num == 5:
+                col_num = 0
+                row_num += 1
+            self.genre_buttons.append(button)
 
-    def show_main_frame(self):
-        self.hide_frames()
-        self.frame.grid(row=0, column=0)
-        self.mainLabel.config(text="Welcome To the movie Recommender!")
+    def cluster_movies(self):
+        movie_name = self.filter_entry.get()
+        if movie_name:
+            filtered_movies = self.movies_df[self.movies_df['Title'].str.contains(movie_name, case=False)]
+            self.result_label.config(text=f"Filtered by Movie Name: {len(filtered_movies)} movies")
+            self.display_movie_list(filtered_movies)
+        else:
+            self.result_label.config(text="Please enter a movie name")
 
-    def hide_frames(self):
-        self.frame.grid_forget()
-        self.Movies_screen.grid_forget()
-        self.Anime_screen.grid_forget()
+    def toggle_genre_filter(self, genre):
+        if genre in self.selected_genres:
+            self.selected_genres.remove(genre)
+        else:
+            self.selected_genres.append(genre)
+        self.update_filtered_count()
 
-def main():
-    root = Tk()
-    app = MovieRecommenderApp(root)
-    root.mainloop()
+    def update_filtered_count(self):
+        if self.selected_genres:
+            filtered_movies = self.movies_df.copy()
+            for genre in self.selected_genres:
+                filtered_movies = filtered_movies[filtered_movies["Genre"].str.contains(genre)]
+            self.result_label.config(text=f"Filtered by {', '.join(self.selected_genres)}: {len(filtered_movies)} movies")
+            self.display_movie_list(filtered_movies)
+        else:
+            self.result_label.config(text="")
+            self.movies_listbox.delete(0, tk.END)
+
+    def display_movie_list(self, movies):
+        self.movies_listbox.delete(0, tk.END)
+        for idx, movie in movies.iterrows():
+            self.movies_listbox.insert(tk.END, f"{movie['Title']} ({movie['Year']}) - {movie['Genre']}")
+
 
 if __name__ == "__main__":
-    main()
+    root = tk.Tk()
+    app = MovieRecommenderApp(root)
+    root.mainloop()
